@@ -11,26 +11,33 @@ public with sharing class QueryCondition implements Comparable {
         GREATER_THAN_OR_EQUAL
     }
 
-    private final SObjectField field;
+    private final String fieldName;
     private final Operator operator;
     private final List<Object> values;
 
     private static Boolean isSet = false;
+
+    public QueryCondition(String fieldName, Operator operator, List<Object> values) {
+        this.fieldName = fieldName;
+        this.operator = operator;
+        this.values = values;
+    }
+
+    public QueryCondition(String fieldName, Operator operator, Object value) {
+        this(fieldName, operator, new List<Object>{ value });
+    }
 
     public QueryCondition(SObjectField field, Operator operator, Object value) {
         this(field, operator, new List<Object>{ value });
     }
 
     public QueryCondition(SObjectField field, Operator operator, List<Object> values) {
-        this.field = field;
-        this.operator = operator;
-        this.values = values;
+        this(field.getDescribe().getName(), operator, values);
     }
 
     public override String toString() {
-        String fieldName = this.field.getDescribe().getName();
         String valueString = this.convertToString(this.values);
-        return fieldName + ' ' + this.getOperator() + ' ' + valueString;
+        return this.fieldName + ' ' + this.getOperator() + ' ' + valueString;
     }
 
     private String convertToString(Object value) {

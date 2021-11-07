@@ -55,7 +55,21 @@ Contains SObject Repository for Salesforce Apex. It can handle child queries and
 
     //Query String = SELECT Id, StageName, (SELECT Id, Name, ProductCode, UnitPrice, Quantity FROM OpportunityLineItems) FROM Opportunity WHERE IsClosed = false AND Owner.LastName = 'Carmona' AND Account.Rating = 'Hot'
     String queryString = oppRepo.getQueryString();
+`
 
+## Simple Repository
+
+Alternatively I have included a Simple Repository that does no validation and simple builds the query based on the exact string input. Here is the same complex query from the preceding example using simple repository.
+
+`
+    new SimpleRepository(Opportunity.SObjectType)
+        .selectField('Id')
+        .selectField('StageName')
+        .selectField('(SELECT Id, Name, ProductCode, UnitPrice, Quantity FROM OpportunityLineItems)')
+        .whereField('IsClosed', QueryCondition.Operator.EQUALS, false)
+        .whereField('Owner.LastName', QueryCondition.Operator.EQUALS, 'Carmona')
+        .whereField('Account.Rating', QueryCondition.Operator.EQUALS, 'Hot')
+        .getQueryString();
 `
 
 ## Still TODO
