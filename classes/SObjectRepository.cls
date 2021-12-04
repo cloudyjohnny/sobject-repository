@@ -176,7 +176,7 @@ public with sharing virtual class SObjectRepository implements ISObjectRepositor
 
     public virtual List<SObject> getResults() {
         String queryString = this.getQueryString();
-        System.debug(queryString);
+        
         this.resetQueryVariables();
 
         return Database.query(queryString);
@@ -222,9 +222,7 @@ public with sharing virtual class SObjectRepository implements ISObjectRepositor
     public List<SObject> find(SObject recordToFind) {
         Map<String, Object> mappedProperties = (Map<String, Object>) JSON.deserializeUntyped(JSON.serialize(recordToFind));
         mappedProperties.remove('attributes');
-        System.debug(mappedProperties.keySet());
         for (String currFieldName : mappedProperties.keySet()) {
-            System.debug(currFieldName);
             this.whereField(currFieldName, QueryCondition.Operator.Equals, mappedProperties.get(currFieldName));
         }
 

@@ -79,8 +79,6 @@ private class SObjectRepository_UnitTests {
         
         String actualQuery = oppRepo.getQueryString();
 
-        System.debug(actualQuery);
-
         System.assertEquals(expectedQuery, actualQuery, 'Queries should match.');
     }
 }

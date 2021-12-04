@@ -4,10 +4,8 @@ public interface ISObjectRepository {
     ISObjectRepository selectFields(Set<SObjectField> fields);
     ISObjectRepository selectFields(Schema.FieldSet fields);
     ISObjectRepository selectChild(String relationshipName, ISObjectRepository childRepo);
-    ISObjectRepository selectParent(Schema.SObjectField relationshipField, ISObjectRepository parentRepo);
-    ISObjectRepository whereField(SObjectField field, QueryCondition.Operator operator, Object value) ;
+    ISObjectRepository whereField(SObjectField field, QueryCondition.Operator operator, Object value);
     ISObjectRepository whereField(SObjectField field, QueryCondition.Operator operator, List<Object> values);
-    ISObjectRepository whereParent(Schema.SObjectField relationshipField, ISObjectRepository parentRepo);
     ISObjectRepository joinParent(Schema.SObjectField relationshipField, ISObjectRepository parentRepo);
     List<String> getSelectedFields();
     String getQueryString();

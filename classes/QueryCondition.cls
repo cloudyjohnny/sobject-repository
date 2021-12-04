@@ -15,7 +15,7 @@ public with sharing class QueryCondition implements Comparable {
     private final Operator operator;
     private final List<Object> values;
 
-    private static Boolean isSet = false;
+    private Boolean isSet = false;
 
     public QueryCondition(String fieldName, Operator operator, List<Object> values) {
         this.fieldName = fieldName;

@@ -15,5 +15,4 @@ public interface ISimpleRepository {
     List<SObject> insertNew();
     List<SObject> updateExisting();
     List<SObject> deleteExisting();
-
 }

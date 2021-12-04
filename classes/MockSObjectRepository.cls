@@ -2,7 +2,7 @@
     MockRepository for unit testing.
     @author https://github.com/cloudyjohnny
 */
-public with sharing class MockSObjectRepository implements ISObjectRepository {
+public with sharing class MockSObjectRepository implements ISObjectRepository, IServices.RepoService, ISimpleRepository, IServices.SimpleRepoService {
     private List<SObject> recordsToCreate;
     private List<SObject> recordsToUpdate;
     private List<SObject> recordsToDelete;
@@ -11,6 +11,11 @@ public with sharing class MockSObjectRepository implements ISObjectRepository {
 
     private Schema.SObjectType objectType;
     public List<SObject> savedRecords = new List<SObject>();
+    private Map<SObjectType, MockSObjectRepository> repos;
+
+    public MockSObjectRepository() {
+        this.repos = new Map<SObjectType, MockSObjectRepository>();
+    }
 
     public MockSObjectRepository(Schema.SObjectType objectType) {
         this.objectType = objectType;
@@ -18,6 +23,19 @@ public with sharing class MockSObjectRepository implements ISObjectRepository {
         this.recordsToUpdate = new List<SObject>();
         this.recordsToDelete = new List<SObject>();
         this.queryResults = new List<SObject>();
+        this.repos = new Map<SObjectType, MockSObjectRepository>();
+    }
+
+    public MockSObjectRepository forObject(Schema.SObjectType objectType) {
+        if (this.repos.containsKey(objectType)) {
+            return this.repos.get(objectType);
+        }
+        return new MockSObjectRepository(objectType);
+    }
+
+    public MockSObjectRepository with(MockSObjectRepository repo) {
+        this.repos.put(repo.getSObjectType(), repo);
+        return this;
     }
 
     public MockSObjectRepository with(List<SObject> mockResults) {
@@ -38,13 +56,11 @@ public with sharing class MockSObjectRepository implements ISObjectRepository {
     public MockSObjectRepository selectFields(Set<SObjectField> fields) { return this; }
     public MockSObjectRepository selectFields(Schema.FieldSet fields) { return this; }
     public MockSObjectRepository selectChild(String relationshipName, ISObjectRepository childRepo) { return this; }
-    public MockSObjectRepository selectParent(Schema.SObjectField relationshipField, ISObjectRepository parentRepo) { return this; }
     public List<String> getSelectedFields() { return new List<String>(); }
     public MockSObjectRepository whereField(String fieldName, QueryCondition.Operator operator, Object value) { return this; }
     public MockSObjectRepository whereField(SObjectField field, QueryCondition.Operator operator, Object value)  { return this; }
     public MockSObjectRepository whereField(String fieldName, QueryCondition.Operator operator, List<Object> values) { return this; }
     public MockSObjectRepository whereField(SObjectField field, QueryCondition.Operator operator, List<Object> values) { return this; }
-    public MockSObjectRepository whereParent(Schema.SObjectField relationshipField, ISObjectRepository parentRepo) { return this; }
     public MockSObjectRepository joinParent(Schema.SObjectField relationshipField, ISObjectRepository parentRepo) { return this; }
     public String getQueryString() { return this.queryString; }
     public Schema.SObjectType getSObjectType() { return this.objectType; }
