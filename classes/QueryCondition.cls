@@ -49,7 +49,7 @@ public with sharing class QueryCondition implements Comparable {
             return this.formatList(value);
         } else if (value instanceof String) {
             String input = (String) value;
-            return '\'' + String.escapeSingleQuotes(input) + '\'';
+            return '\'' + String.escapeSingleQuotes(input).trim() + '\'';
         }
 
         String valueString = String.valueOf(value);
