@@ -127,7 +127,11 @@ public with sharing class QueryStringBuilder {
         String parentQueryString = parentRepo.getQueryString();
         List<String> parentWhereConditions = parentQueryString.substringAfter('WHERE').split(SEPARATOR);
         for (String currParentCondition : parentWhereConditions) {
-            this.parentWhereConditions.add(relationshipName + '.' + currParentCondition.trim());
+            String condition = currParentCondition.trim();
+            if (String.isBlank(condition)) {
+                continue;
+            }
+            this.parentWhereConditions.add(relationshipName + '.' + condition);
         }
 
         return this;

@@ -3,62 +3,31 @@
     It also enabled dependency injection for any DMLs.
     @author https://github.com/cloudyjohnny
 */
-public with sharing virtual class SObjectRepository implements ISObjectRepository {
+public with sharing virtual class SObjectRepository implements ISObjectRepository, IServices.RepoService {
     private Schema.SObjectType objectType;
-    private List<String> selectedFields;
-    private List<String> selectedChildQueries;
-    private Set<QueryCondition> whereConditions;
-    private List<String> parentWhereConditions;
 
-    private List<SObject> recordsToCreate;
-    private List<SObject> recordsToUpdate;
-    private List<SObject> recordsToDelete;
-
+    private QueryStringBuilder query;
+    private CRUDService crud;
     private SchemaValidator schemaValidator;
-
-    private final String QUERY_STRING_TEMPLATE = 'SELECT {0} FROM {1} WHERE {2}';
-    private final String FROM_OBJECT_TEMPLATE = 'FROM {0}';
-    private final String SEPARATOR = ' AND ';
 
     public SObjectRepository(Schema.SObjectType objectType) {
         this.objectType = objectType;
-        this.resetQueryVariables();
-        this.resetSaveVariables();
+        this.query = new QueryStringBuilder(this.objectType);
+        this.crud = new CRUDService(this.objectType);
         this.schemaValidator = new SchemaValidator(this.objectType);
     }
 
-    private void resetQueryVariables() {
-        this.selectedFields = new List<String>();
-        this.selectedChildQueries = new List<String>();
-        this.whereConditions = new Set<QueryCondition>();
-        this.parentWhereConditions = new List<String>();
-    }
-
-    private void resetSaveVariables() {
-        this.recordsToCreate = new List<SObject>();
-        this.recordsToUpdate = new List<SObject>();
-        this.recordsToDelete = new List<SObject>();
+    public SObjectRepository forObject(Schema.SObjectType objectType) {
+        return new SObjectRepository(objectType);
     }
 
     /*
      * Query Operations
      */
 
-    public SObjectRepository selectField(String fieldName) {
-        schemaValidator.validateField(fieldName);
-        selectedFields.add(fieldName);        
-        return this;
-    }
-
     public SObjectRepository selectField(SObjectField field) {
-        return this.selectField(field.getDescribe().getName());
-    }
-
-    public SObjectRepository selectFields(List<String> fieldNames) {
-        for (String fieldName : fieldNames) {
-            this.selectField(fieldName);
-        }
-
+        this.schemaValidator.validateField(field);
+        this.query.selectField(field);
         return this;
     }
 
@@ -68,10 +37,6 @@ public with sharing virtual class SObjectRepository implements ISObjectRepositor
         }
 
         return this;
-    }
-
-    public SObjectRepository selectFields(Set<String> fields) {
-        return this.selectFields(new List<String>(fields));
     }
 
     public SObjectRepository selectFields(Set<SObjectField> fields) {
@@ -84,83 +49,45 @@ public with sharing virtual class SObjectRepository implements ISObjectRepositor
 
     public SObjectRepository selectFields(Schema.FieldSet fieldSet) {
         for(Schema.FieldSetMember currField : fieldSet.getFields()) {
-            this.selectField(currField.getFieldPath());
+            this.selectField(currField.getSObjectField());
         }
 
         return this;
     }
 
     public List<String> getSelectedFields() {
-        return this.selectedFields;
+        return this.query.getSelectedFields();
     }
 
     public SObjectRepository selectChild(String relationshipName, ISObjectRepository childRepo) {
         schemaValidator.validateChildRelationship(relationshipName, childRepo.getSObjectType());
-        String childQueryString = childRepo.getQueryString();
-        String originalFromClause = String.format(
-            FROM_OBJECT_TEMPLATE,
-            new List<String> {
-                childRepo
-                    .getSObjectType()
-                    .getDescribe()
-                    .getName()
-            }
-        );
-        String newFromClause = String.format(FROM_OBJECT_TEMPLATE, new List<String> { relationshipName });
-        String newChildQueryString = childQueryString.replace(originalFromClause, newFromClause);
-
-        if(String.isBlank(newChildQueryString.substringAfter('WHERE'))) {
-            newChildQueryString = newChildQueryString.substringBefore(' WHERE');
-        }
-
-        this.selectedChildQueries.add(newChildQueryString);
+        this.query.selectChild(relationshipName, childRepo);
 
         return this;
     }    
 
-    public SObjectRepository selectParent(Schema.SObjectField relationshipField, ISObjectRepository parentRepo) {
+    private SObjectRepository selectParent(Schema.SObjectField relationshipField, ISObjectRepository parentRepo) {
         schemaValidator.validateParentRelationship(relationshipField, parentRepo.getSObjectType());
-        String relationshipName = relationshipField.getDescribe().getRelationshipName();
-        for (String currParentField : parentRepo.getSelectedFields()) {
-            this.selectedFields.add(relationshipName + '.' + currParentField);
-        }
+        this.query.selectParent(relationshipField, parentRepo);
 
         return this;
     }    
-
-    public SObjectRepository whereField(String fieldName, QueryCondition.Operator operator, Object value) {
-        schemaValidator.validateField(fieldName);
-        SObjectField field = this.objectType.getDescribe().fields.getMap().get(fieldName);
-        this.whereConditions.add(new QueryCondition(field, operator, value));
-        return this;
-    }
 
     public SObjectRepository whereField(SObjectField field, QueryCondition.Operator operator, Object value) {
-        this.whereConditions.add(new QueryCondition(field, operator, value));
-        return this;
-    }
-
-    public SObjectRepository whereField(String fieldName, QueryCondition.Operator operator, List<Object> values) {
-        schemaValidator.validateField(fieldName);
-        SObjectField field = this.objectType.getDescribe().fields.getMap().get(fieldName);
-        this.whereConditions.add(new QueryCondition(field, operator, values));
+        this.schemaValidator.validateField(field);
+        this.query.whereField(field, operator, value);
         return this;
     }
 
     public SObjectRepository whereField(SObjectField field, QueryCondition.Operator operator, List<Object> values) {
-        this.whereConditions.add(new QueryCondition(field, operator, values));
+        this.schemaValidator.validateField(field);
+        this.query.whereField(field, operator, values);
         return this;
     }
 
-    public SObjectRepository whereParent(Schema.SObjectField relationshipField, ISObjectRepository parentRepo) {
+    private SObjectRepository whereParent(Schema.SObjectField relationshipField, ISObjectRepository parentRepo) {
         schemaValidator.validateParentRelationship(relationshipField, parentRepo.getSObjectType());
-        String relationshipName = relationshipField.getDescribe().getRelationshipName();
-        String parentQueryString = parentRepo.getQueryString();
-        List<String> parentWhereConditions = parentQueryString.substringAfter('WHERE').split(SEPARATOR);
-        for (String currParentCondition : parentWhereConditions) {
-            this.parentWhereConditions.add(relationshipName + '.' + currParentCondition.trim());
-        }
-
+        this.query.whereParent(relationshipField, parentRepo);
         return this;
     }
 
@@ -174,59 +101,22 @@ public with sharing virtual class SObjectRepository implements ISObjectRepositor
         return this.objectType;
     }
 
+    public String getQueryString() {
+        return this.query.getQueryString();
+    }
+
     public virtual List<SObject> getResults() {
-        String queryString = this.getQueryString();
-        
-        this.resetQueryVariables();
+        String queryString = this.query.getQueryString();
+        this.query.reset();
 
         return Database.query(queryString);
     }
 
-    public String getQueryString() {
-        List<String> conditionList = new List<String>();
-        for (QueryCondition currCondition : this.whereConditions) {
-            conditionList.add(currCondition.toString());
-        }
-
-        String selectClause = String.join(this.selectedFields, ', ');
-
-        if (!this.selectedChildQueries.isEmpty()) {
-            if (!this.selectedFields.isEmpty()) {
-                selectClause += ', ';
-            }
-            selectClause += '(' + String.join(this.selectedChildQueries, '),(') + ')';
-        }
-
-        String whereClause = String.join(conditionList, SEPARATOR);
-
-        if (!this.parentWhereConditions.isEmpty()) {
-            if(!conditionList.isEmpty()) {
-                whereClause += SEPARATOR;
-            }
-
-            whereClause += String.join(this.parentWhereConditions, SEPARATOR);
-        }
-
-        String queryString = String.format(
-            QUERY_STRING_TEMPLATE,
-            new List<String> {
-                selectClause,
-                this.objectType.getDescribe().getName(),
-                whereClause
-            }
-        );
-
-        return queryString;
-    }
-
     public List<SObject> find(SObject recordToFind) {
-        Map<String, Object> mappedProperties = (Map<String, Object>) JSON.deserializeUntyped(JSON.serialize(recordToFind));
-        mappedProperties.remove('attributes');
-        for (String currFieldName : mappedProperties.keySet()) {
-            this.whereField(currFieldName, QueryCondition.Operator.Equals, mappedProperties.get(currFieldName));
-        }
-
-        return this.getResults();
+        this.schemaValidator.validateSObjectType(recordToFind);
+        String queryString = this.query.getFindQueryString(recordToFind);
+        this.query.reset();
+        return Database.query(queryString);
     }
 
     /* 
@@ -234,51 +124,36 @@ public with sharing virtual class SObjectRepository implements ISObjectRepositor
      */
 
     public SObjectRepository add(SObject record) {
-        schemaValidator.validateSObjectType(record);
-        if (record.Id == null) {
-            this.recordsToCreate.add(record);
-        }
-        else {
-            this.recordsToUpdate.add(record);
-        }
+        this.crud.add(record);
         return this;
     }
 
     public SObjectRepository remove(SObject record) {
-        schemaValidator.validateSObjectType(record);
-        this.recordsToDelete.add(record);
+        this.crud.remove(record);
         return this;
     }
 
     public List<SObject> save() {
-        List<SObject> savedRecords = new List<SObject>();
-        if (!this.recordsToCreate.isEmpty()) {
-            savedRecords.addAll(this.insertNew());
-        }
-        if (!this.recordsToUpdate.isEmpty()) {
-            savedRecords.addAll(this.updateExisting());
-        }
-        if (!this.recordsToDelete.isEmpty()) {
-            savedRecords.addAll(this.deleteExisting());
-        }
-
-        this.resetSaveVariables();
-
-        return savedRecords;
+        List<SObject> records = this.crud.save();
+        this.crud.reset();
+        return records;
     }
 
     public List<SObject> insertNew() {
-        insert this.recordsToCreate;
-        return this.recordsToCreate;
+        List<SObject> records = this.crud.insertNew();
+        this.crud.reset();
+        return records;
     }
 
     public List<SObject> updateExisting() {
-        update this.recordsToUpdate;
-        return this.recordsToUpdate;
+        List<SObject> records = this.crud.updateExisting();
+        this.crud.reset();
+        return records;
     }
 
     public List<SObject> deleteExisting() {
-        delete this.recordsToDelete;
-        return this.recordsToDelete;
+        List<SObject> records = this.crud.deleteExisting();
+        this.crud.reset();
+        return records;
     }
 }
