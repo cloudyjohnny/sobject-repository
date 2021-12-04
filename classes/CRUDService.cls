@@ -6,10 +6,10 @@ public with sharing class CRUDService {
 
     public CRUDService(SObjectType sObjectType) {
         schemaValidator = new SchemaValidator(sObjectType);
-        this.resetSaveVariables();
+        this.reset();
     }
 
-    private void resetSaveVariables() {
+    public void reset() {
         this.recordsToCreate = new List<SObject>();
         this.recordsToUpdate = new List<SObject>();
         this.recordsToDelete = new List<SObject>();
@@ -41,8 +41,6 @@ public with sharing class CRUDService {
         if (!this.recordsToDelete.isEmpty()) {
             savedRecords.addAll(this.deleteExisting());
         }
-
-        this.resetSaveVariables();
 
         return savedRecords;
     }
